@@ -218,6 +218,20 @@ class MedGemmaAgent:
         text_symptoms = self.predictor.extract_symptoms(note.note_text or "")
         all_symptoms = list(dict.fromkeys(explicit_symptoms + text_symptoms))
 
+        if not all_symptoms and not note.disease_query:
+            return (
+                {
+                    "status": "insufficiant_evidance",
+                    "message": (
+                        "insufficiant clinical information. "
+                        "Please provide recognised symptoms or "
+                        "additionl clinical details. "
+                    ),
+                    "top_diseases": [],
+                },
+                ["extract_symptoms"],
+            )
+
         symptom_prediction: Optional[Dict[str, Any]] = None
         if all_symptoms:
             symptom_prediction = self.predictor.predict_from_symptoms(all_symptoms, top_k=3)
@@ -242,6 +256,8 @@ class MedGemmaAgent:
         gender = gender_match.group(1) if gender_match else None
 
         findings: Dict[str, Any] = {
+            "status": "ok",
+            "message": None
             "symptoms_identified": all_symptoms,
             "primary_disease": primary_disease,
             "alternative_diseases": (
@@ -270,6 +286,21 @@ class MedGemmaAgent:
         explicit_symptoms = [s.strip() for s in (note.symptoms or []) if s.strip()]
         text_symptoms = self.predictor.extract_symptoms(note.note_text or "")
         all_symptoms = list(dict.fromkeys(explicit_symptoms + text_symptoms))
+
+        if not all_symptoms and not note.disease_query:
+            findings: dict[str, Any] = {
+                "status": "insufficiant_evidance",
+                "message": (
+                    "insufficiant clinical information. "
+                    "Please provide recognised symptoms or more clinical details."
+                ),
+                "symptoms_identified": [],
+                "primary_disease": None,
+                "alternative_diseases": [],
+                "cluster_related_diseases": [],
+                "model_used": None,
+            }
+            return findings, ["extract_symptoms"]
 
         # Risk score: prefer dataset score for primary disease, fall back to
         # the regressor.
